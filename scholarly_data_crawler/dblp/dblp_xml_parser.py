@@ -9,52 +9,61 @@ class DBLPHandler(xml.sax.ContentHandler):
     """
         The handler class is taken and modified from http://projects.csail.mit.edu/dnd/DBLP/DBLP2json.py
     """
-    papertypes = ['article', 'book', 'inproceedings', 'incollection', 'www', 'proceedings', 'phdthesis', 'mastersthesis']
+    #papertypes = ['article', 'book', 'inproceedings', 'incollection', 'www', 'proceedings', 'phdthesis', 'mastersthesis']
+    papertypes = ['article', 'book', 'inproceedings', 'proceedings']
 
-    def __init__(self, out):
-        self.out = out
+    def __init__(self, filter):
+        self.filter  = filter
         self.paper = None
         self.authors = []
         self.year = None
         self.text = ''
         self.papercount = 0
-        self.edgecount = 0
+        self.title = ''
+        self.booktitle = ''
+        self.ee = ''
+        self.paper_list = []
+        self.paper_active = False
 
     def startElement(self, name, attrs):
 
-        attr_list = attrs.values()
-        if(len(attr_list) > 0):
-            if("ijcai" in attr_list[0]):
-                self.papercount+=1
-
         if name in self.papertypes:
             self.paper = str(attrs['key'])
-            self.authors = []
-            self.year = None
-
-        elif name in ['author', 'year', 'title','booktitle']:
-            self.text = ''
-
+            if (self.filter in self.paper):
+                print(self.paper)
+                self.authors = []
+                self.year = None
+                self.paper_active = True
+                self.text = ''
+                self.booktitle = ''
+                self.ee = ''
+                self.title = ''
 
     def endElement(self, name):
-        if name == 'author':
-            self.authors.append(self.text)
+        if (self.paper_active):
+            if name == 'author':
+                self.authors.append(self.text.strip())
+            elif name == 'year':
+                self.year = int(self.text.strip())
+            elif name =='title':
+                self.title = self.text.strip()
+            elif name =='booktitle':
+                self.booktitle = self.text.strip()
+            elif name =='ee':
+                self.ee = self.text.strip()
 
-        if name == 'year':
-            self.year = int(self.text.strip())
-        elif name in self.papertypes:
-            # self.write_paper()
-            self.paper = None
+            elif name in self.papertypes:
+                paper_data = [self.paper,self.authors,self.year,self.title,self.booktitle,self.ee]
+                print(paper_data)
+                self.paper_list.append(paper_data)
+                self.paper = None
+                self.paper_active = False
 
-    # def write_paper(self):
-    #     if self.papercount:
-    #         self.out.write(',\n')
-    #     self.papercount += 1
-    #     self.edgecount += len(self.authors)
-    #     json.dump([self.paper, self.authors, self.year], self.out)
+            self.text = ''
 
     def characters(self, chars):
-        self.text += chars
+        if (self.paper_active):
+            self.text += chars
 
 class DBLPXMLParser(object):
 
@@ -66,11 +75,15 @@ class DBLPXMLParser(object):
 
 if __name__ == '__main__':
 
-    xmlfile = gzip.GzipFile('/home/arun/data/dblp/dblp.xml.gz', 'r')
-    out = gzip.GzipFile('/tmp/data.out', 'w')
-    dblp = DBLPHandler(out)
+    xmlfile = gzip.GzipFile('/Users/adminnobel/Downloads/dblp.xml.gz', 'r')
+
+    dblp = DBLPHandler("conf/kdd")
     parser = xml.sax.parse(xmlfile, dblp)
-    print(dblp.papercount)
+    import pandas as pd
+
+    pd.DataFrame(dblp.paper_list)
+
+    print(pd)
 
 
 
